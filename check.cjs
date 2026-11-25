@@ -1,0 +1,28 @@
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+const source=fs.readFileSync('dist/app.js','utf8').replace(/render\(\);\s*$/,'');
+const context={assert,console,localStorage:{getItem:()=>null},document:{addEventListener:()=>{}},setTimeout:()=>{}};
+vm.runInNewContext(source+`
+assert.equal(data.length,8);
+assert.equal(data.reduce((s,p)=>s+p.records.length,0),48);
+assert.equal(composite(latest(data[0])),76);
+assert.equal(status(data[0]),'Review needed');
+assert.equal(status(data[1]),'Stable');
+assert.equal(status(data[2]),'Monitor');
+assert.equal(alerts().length,3);
+assert.equal(status({records:[]}), 'Baseline only');
+const changesBefore=changes(data[0]);
+assert.ok(Math.abs(changesBefore.find(c=>c.key==='memory').change-20.930232558139537)<.0001);
+assert.ok(changesBefore.find(c=>c.key==='reaction').change>22);
+const first=alerts()[0];reviewed[first.key]={date:'2026-11-25T12:00:00Z',note:'Reviewed'};
+assert.equal(alerts().filter(a=>!a.review).length,2);
+assert.equal(status(first.p),'Review needed');
+assert.ok(validBackup({patients:data,reviewed,threshold}));
+const invalid=JSON.parse(JSON.stringify({patients:data,reviewed,threshold}));invalid.patients[0].records[0].memory=101;
+assert.equal(validBackup(invalid),false);
+const invalidDate=JSON.parse(JSON.stringify({patients:data,reviewed,threshold}));invalidDate.patients[0].records[0].date='2026-02-31';assert.equal(validBackup(invalidDate),false);
+const zero={records:[{memory:0,attention:80,executive:80,processing:80,reaction:500},{memory:10,attention:80,executive:80,processing:80,reaction:500}]};
+assert.ok(changes(zero).every(c=>Number.isFinite(c.change)));
+assert.equal(esc('<script>'), '&lt;script&gt;');
+range='3M';assert.ok(!chartSvg(data[0]).includes('10 Jun'));range='All';assert.ok(chartSvg(data[0]).includes('10 Jun'));
+console.log('PASS: baseline calculations, score aggregation, status thresholds, reaction direction, alert review, backup validation, zero baseline, escaping, date ranges.');
+`,context);

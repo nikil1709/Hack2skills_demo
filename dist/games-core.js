@@ -1,0 +1,14 @@
+/* Original demonstration tasks; scores are not clinical norms or percentiles. */
+(function(root){
+  const protocol='ct-games-v1';
+  const clamp=n=>Math.max(0,Math.min(100,Math.round(n)));
+  function median(values){const a=values.filter(Number.isFinite).slice().sort((a,b)=>a-b);return a.length?Math.round(a.length%2?a[(a.length-1)/2]:(a[a.length/2-1]+a[a.length/2])/2):null;}
+  function shuffle(a,rng=Math.random){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+  function memory(rounds){const total=rounds.reduce((n,r)=>n+r.expected.length,0),correct=rounds.reduce((n,r)=>n+r.expected.filter((v,i)=>r.responses[i]===v).length,0);return {score:total?clamp(100*correct/total):0,correct,total,rounds};}
+  function attention(trials){const targets=trials.filter(t=>t.target),distractors=trials.filter(t=>!t.target);const valid=t=>t.responded&&t.rt>=100&&t.rt<=1500;const hits=targets.filter(valid).length,falseAlarms=distractors.filter(t=>t.responded).length,rt=targets.filter(valid).map(t=>t.rt);return {score:targets.length&&distractors.length?clamp(50*(hits/targets.length+1-falseAlarms/distractors.length)):0,hits,targets:targets.length,misses:targets.length-hits,falseAlarms,distractors:distractors.length,anticipations:trials.filter(t=>t.responded&&t.rt<100).length,reaction:median(rt),validReactions:rt.length,trials};}
+  function executive(trials){const correct=trials.filter(t=>t.answer===t.expected).length;const repeat=trials.filter((t,i)=>i>0&&!t.switch&&t.answer===t.expected).map(t=>t.rt),switched=trials.filter(t=>t.switch&&t.answer===t.expected).map(t=>t.rt);return {score:trials.length?clamp(100*correct/trials.length):0,correct,total:trials.length,switchCorrect:trials.filter(t=>t.switch&&t.answer===t.expected).length,switchTotal:trials.filter(t=>t.switch).length,repeatMedian:median(repeat),switchMedian:median(switched),trials};}
+  function processing(trials){const correct=trials.filter(t=>t.answer===t.expected).length,errors=trials.length-correct;return {score:clamp(100*(correct-errors)/30),correct,errors,total:trials.length,durationSeconds:30,reaction:median(trials.filter(t=>t.answer===t.expected).map(t=>t.rt)),trials};}
+  function executiveDeck(practice=false,rng=Math.random){const rules=practice?['parity','magnitude','parity','magnitude']:['parity','parity','magnitude','magnitude','parity','parity','magnitude','parity','parity','magnitude','magnitude','parity','magnitude','magnitude','parity','parity'];return rules.map((rule,i)=>{const number=[1,2,3,4,6,7,8,9][Math.floor(rng()*8)];return {rule,number,switch:i>0&&rules[i-1]!==rule,expected:rule==='parity'?(number%2===0?'right':'left'):(number<5?'left':'right')};});}
+  root.CognitiveGames={protocol,clamp,median,shuffle,memory,attention,executive,processing,executiveDeck};
+  if(typeof module!=='undefined')module.exports=root.CognitiveGames;
+})(typeof window!=='undefined'?window:globalThis);
